@@ -29,7 +29,7 @@ public class RotaPedidos {
                 .to("direct:soap");
 
                 from("direct:http")
-                        .routeId("Pedido-HTTP")
+                        .routeId("Pedido-JSON")
                         .setProperty("pedidoId", xpath("/pedido/id/text()"))
                         .setProperty("clientId", xpath("/pedido/pagamento/email-titular/text()"))
                         .split()
