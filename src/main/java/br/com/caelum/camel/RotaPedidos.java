@@ -9,11 +9,18 @@ import org.apache.camel.impl.DefaultCamelContext;
 public class RotaPedidos {
     public static void main(String[] args) throws Exception {
         CamelContext context = new DefaultCamelContext();
-        context.addRoutes(new RouteBuilder() {
 
+        context.addRoutes(new RouteBuilder() {
             @Override
             public void configure() throws Exception {
                 from("file:pedidos?delay=5s&noop=true")
+                //Enviando a mesma mensagem de entrada para as duas sub-rotas
+                .multicast()
+                .to("direct:http")
+                .to("direct:soap");
+
+                from("direct:http")
+                        .routeId("Rota-HTTP")
                         .setProperty("pedidoId", xpath("/pedido/id/text()"))
                         .setProperty("clientId", xpath("/pedido/pagamento/email-titular/text()"))
                         .split()
@@ -27,6 +34,11 @@ public class RotaPedidos {
                         .setHeader(Exchange.HTTP_METHOD, HttpMethods.GET)
                         .setHeader(Exchange.HTTP_QUERY, simple("ebookId=${property.ebookId}&pedidoId=${property.pedidoId}&clienteId=${property.clienteId}"))
                 .to("http4://localhost:8080/webservices/ebook/item");
+
+                from("direct:soap")
+                        .routeId("Rota-SOAP")
+                        .setBody(constant("<envelope>teste</envelope>"))
+                .to("mock:soap");
             }
         });
 
