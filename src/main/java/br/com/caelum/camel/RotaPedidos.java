@@ -13,14 +13,23 @@ public class RotaPedidos {
         context.addRoutes(new RouteBuilder() {
             @Override
             public void configure() throws Exception {
+                errorHandler(
+                        deadLetterChannel("file:erro")
+                        .logExhaustedMessageHistory(true)
+                        .maximumRedeliveries(3)
+                        .redeliveryDelay(2000)
+                );
+
                 from("file:pedidos?delay=5s&noop=true")
+                .routeId("Rota-Pedidos")
+                .to("validator:pedido.xsd")
                 //Enviando a mesma mensagem de entrada para as duas sub-rotas
                 .multicast()
                 .to("direct:http")
                 .to("direct:soap");
 
                 from("direct:http")
-                        .routeId("Rota-HTTP")
+                        .routeId("Pedido-HTTP")
                         .setProperty("pedidoId", xpath("/pedido/id/text()"))
                         .setProperty("clientId", xpath("/pedido/pagamento/email-titular/text()"))
                         .split()
@@ -36,7 +45,7 @@ public class RotaPedidos {
                 .to("http4://localhost:8080/webservices/ebook/item");
 
                 from("direct:soap")
-                        .routeId("Rota-SOAP")
+                        .routeId("Pedido-SOAP")
                         .to("xslt:pedido-para-soap.xslt")
                         .log("${body}")
                         .setHeader(Exchange.CONTENT_TYPE, constant("text/xml"))
